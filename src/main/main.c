@@ -406,7 +406,7 @@ static void main_draw_volume_osd(void)
 }
 
 /* this function could be called as a result of a keypress, joystick/button movement,
-   LIRC command, or 'testshots' command-line option timer */
+   LIRC command, or 'testshots'/'autoshots' command-line option timers */
 void main_take_next_screenshot(void)
 {
     l_TakeScreenshot = l_CurrentFrame + 1;

@@ -1,6 +1,12 @@
 ===================================================================================================
-| Mupen64Plus 2.5 credits                                                        April 26th, 2015 |
+| Mupen64Plus 2.5+ credits                                                     January 25th, 2017 |
 ===================================================================================================
+
+Alpha Griffin
+ - core:
+   - improve screenshot performance and increase limit from 1,000 to 10 million images per ROM
+ - ui-console:
+   - add '--autoshots' parameter for automatic screenshots
 
 bentley
  - video-glide64mk2:

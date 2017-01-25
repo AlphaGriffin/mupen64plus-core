@@ -1,6 +1,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *   Mupen64plus - screenshot.c                                            *
  *   Mupen64Plus homepage: http://code.google.com/p/mupen64plus/           *
+ *   Copyright (C) 2017 Alpha Griffin                                      *
  *   Copyright (C) 2008 Richard42                                          *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -74,6 +75,16 @@ static void user_flush_data(png_structp png_write)
 * Other Local (static) functions
 */
 
+/*
+ * Keep memory buffer pointers so that we can save on malloc/free calls
+ * as long as the screen resolution doesn't change.
+ */
+static unsigned char *Shot_pucFrame = NULL;
+static int Shot_width = 0;
+static int Shot_height = 0;
+static png_byte **Shot_row_pointers = NULL;
+static int Shot_row_pointers_size = 0;
+
 static int SaveRGBBufferToFile(const char *filename, const unsigned char *buf, int width, int height, int pitch)
 {
     int i;
@@ -111,19 +122,28 @@ static int SaveRGBBufferToFile(const char *filename, const unsigned char *buf, i
     // set the info
     png_set_IHDR(png_write, png_info, width, height, 8, PNG_COLOR_TYPE_RGB,
                  PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-    // allocate row pointers and scale each row to 24-bit color
-    png_byte **row_pointers;
-    row_pointers = (png_byte **) malloc(height * sizeof(png_bytep));
+                 
+    // allocate row pointers and scale each row to 24-bit color (if needed)
+    int row_pointers_size = height * sizeof(png_bytep);
+    if (row_pointers_size > Shot_row_pointers_size)
+    {
+        if (Shot_row_pointers != NULL)
+        {
+            free(Shot_row_pointers);
+        }
+        Shot_row_pointers = (png_byte **) malloc(row_pointers_size);
+        Shot_row_pointers_size = row_pointers_size;
+    }
+    
     for (i = 0; i < height; i++)
     {
-        row_pointers[i] = (png_byte *) (buf + (height - 1 - i) * pitch);
+        Shot_row_pointers[i] = (png_byte *) (buf + (height - 1 - i) * pitch);
     }
     // set the row pointers
-    png_set_rows(png_write, png_info, row_pointers);
+    png_set_rows(png_write, png_info, Shot_row_pointers);
     // write the picture to disk
     png_write_png(png_write, png_info, 0, NULL);
     // free memory
-    free(row_pointers);
     png_destroy_write_struct(&png_write, &png_info);
     // close file
     fclose(savefile);
@@ -136,14 +156,14 @@ static int CurrentShotIndex;
 static char *GetNextScreenshotPath(void)
 {
     char *ScreenshotPath;
-    char ScreenshotFileName[20 + 8 + 1];
+    char ScreenshotFileName[20 + 8 + 1 + 4];
 
     // generate the base name of the screenshot
     // add the ROM name, convert to lowercase, convert spaces to underscores
     strcpy(ScreenshotFileName, ROM_PARAMS.headername);
     for (char *pch = ScreenshotFileName; *pch != '\0'; pch++)
         *pch = (*pch == ' ') ? '_' : tolower(*pch);
-    strcat(ScreenshotFileName, "-###.png");
+    strcat(ScreenshotFileName, "-#######.png");
     
     // add the base path to the screenshot file name
     const char *SshotDir = ConfigGetParamString(g_CoreConfig, "ScreenshotPath");
@@ -164,20 +184,20 @@ static char *GetNextScreenshotPath(void)
             return NULL;
     }
 
-    // patch the number part of the name (the '###' part) until we find a free spot
-    char *NumberPtr = ScreenshotPath + strlen(ScreenshotPath) - 7;
-    for (; CurrentShotIndex < 1000; CurrentShotIndex++)
+    // patch the number part of the name (the '#######' part) until we find a free spot
+    char *NumberPtr = ScreenshotPath + strlen(ScreenshotPath) - 11;
+    for (; CurrentShotIndex < 10000000; CurrentShotIndex++)
     {
-        sprintf(NumberPtr, "%03i.png", CurrentShotIndex);
+        sprintf(NumberPtr, "%07i.png", CurrentShotIndex);
         FILE *pFile = fopen(ScreenshotPath, "r");
         if (pFile == NULL)
             break;
         fclose(pFile);
     }
 
-    if (CurrentShotIndex >= 1000)
+    if (CurrentShotIndex >= 10000000)
     {
-        DebugMessage(M64MSG_ERROR, "Can't save screenshot; folder already contains 1000 screenshots for this ROM");
+        DebugMessage(M64MSG_ERROR, "Can't save screenshot; folder already contains 10000000 screenshots for this ROM");
         free(ScreenshotPath);
         return NULL;
     }
@@ -185,6 +205,7 @@ static char *GetNextScreenshotPath(void)
 
     return ScreenshotPath;
 }
+
 
 /*********************************************************************************************************
 * Global screenshot functions
@@ -208,22 +229,31 @@ extern "C" void TakeScreenshot(int iFrameNumber)
     int width = 640;
     int height = 480;
     gfx.readScreen(NULL, &width, &height, 0);
-
-    // allocate memory for the image
-    unsigned char *pucFrame = (unsigned char *) malloc(width * height * 3);
-    if (pucFrame == NULL)
+    
+    if (width != Shot_width || height != Shot_height)
     {
-        free(filename);
-        return;
+        // (re)allocate memory for the image
+        if (Shot_pucFrame != NULL)
+        {
+            free (Shot_pucFrame);
+        }
+        Shot_pucFrame = (unsigned char *) malloc(width * height * 3);
+        if (Shot_pucFrame == NULL)
+        {
+            free(filename);
+            return;
+        }
+        
+        Shot_width = width;
+        Shot_height = height;
     }
 
     // grab the back image from OpenGL by calling the video plugin
-    gfx.readScreen(pucFrame, &width, &height, 0);
+    gfx.readScreen(Shot_pucFrame, &width, &height, 0);
 
     // write the image to a PNG
-    SaveRGBBufferToFile(filename, pucFrame, width, height, width * 3);
+    SaveRGBBufferToFile(filename, Shot_pucFrame, width, height, width * 3);
     // free the memory
-    free(pucFrame);
     free(filename);
     // print message -- this allows developers to capture frames and use them in the regression test
     main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Captured screenshot for frame %i.", iFrameNumber);
