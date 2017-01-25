@@ -87,6 +87,9 @@ m64p_error main_volume_set_level(int level);
 m64p_error main_volume_mute(void);
 int        main_volume_get_muted(void);
 
+m64p_error main_video_autoshots_toggle(void);
+int        main_video_get_autoshots(void);
+
 m64p_error main_reset(int do_hard_reset);
 
 #endif /* __MAIN_H__ */

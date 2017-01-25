@@ -104,6 +104,7 @@ static int   l_TakeScreenshot = 0;       // Tell OSD Rendering callback to take 
 static int   l_SpeedFactor = 100;        // percentage of nominal game speed at which emulator is running
 static int   l_FrameAdvance = 0;         // variable to check if we pause on next frame
 static int   l_MainSpeedLimit = 1;       // insert delay during vi_interrupt to keep speed at real-time
+static int   l_AutoshotsEnabled = 0;     // whether autoshots are currently enabled (see --autoshots and --autoshots-start-disabled)
 
 static osd_message_t *l_msgVol = NULL;
 static osd_message_t *l_msgFF = NULL;
@@ -507,6 +508,9 @@ m64p_error main_core_state_query(m64p_core_param param, int *rval)
         case M64CORE_STATE_LOADCOMPLETE:
         case M64CORE_STATE_SAVECOMPLETE:
             return M64ERR_INPUT_INVALID;
+        case M64CORE_VIDEO_AUTOSHOTS:
+            *rval = main_video_get_autoshots();
+            break;
         default:
             return M64ERR_INPUT_INVALID;
     }
@@ -602,6 +606,10 @@ m64p_error main_core_state_set(m64p_core_param param, int val)
         case M64CORE_STATE_LOADCOMPLETE:
         case M64CORE_STATE_SAVECOMPLETE:
             return M64ERR_INPUT_INVALID;
+        case M64CORE_VIDEO_AUTOSHOTS:
+            if ((main_video_get_autoshots() && !val) || (!main_video_get_autoshots() && val))
+                return main_video_autoshots_toggle();
+            return M64ERR_SUCCESS;
         default:
             return M64ERR_INPUT_INVALID;
     }
@@ -668,6 +676,18 @@ int main_volume_get_muted(void)
     return (audio.volumeGetLevel() == 0);
 }
 
+m64p_error main_video_autoshots_toggle(void)
+{
+    l_AutoshotsEnabled = l_AutoshotsEnabled == 0 ? 1 : 0;
+    StateChanged(M64CORE_VIDEO_AUTOSHOTS, main_video_get_autoshots());
+    return M64ERR_SUCCESS;
+}
+
+int main_video_get_autoshots(void)
+{
+    return (l_AutoshotsEnabled == 1);
+}
+
 m64p_error main_reset(int do_hard_reset)
 {
     if (do_hard_reset)
@@ -686,7 +706,7 @@ static void video_plugin_render_callback(int bScreenRedrawn)
     int bOSD = ConfigGetParamBool(g_CoreConfig, "OnScreenDisplay");
 
     // if the flag is set to take a screenshot, then grab it now
-    if (l_TakeScreenshot != 0)
+    if (l_TakeScreenshot != 0 || l_AutoshotsEnabled == 1)
     {
         // if the OSD is enabled, and the screen has not been recently redrawn, then we cannot take a screenshot now because
         // it contains the OSD text.  Wait until the next redraw
