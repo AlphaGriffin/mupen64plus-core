@@ -23,6 +23,7 @@
 #include <SDL.h>
 #include <ctype.h>
 #include <png.h>
+#include <pthread.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +44,23 @@ extern "C" {
 #include "osal/preproc.h"
 #include "plugin/plugin.h"
 }
+
+
+
+/*
+ * Keep memory buffer pointers so that we can save on malloc/free calls
+ * as long as the screen resolution doesn't change.
+ */
+static unsigned char *Shot_pucFrame = NULL;
+static int Shot_width = 0;
+static int Shot_height = 0;
+static png_byte **Shot_row_pointers = NULL;
+static int Shot_row_pointers_size = 0;
+static pthread_t Shot_thread;
+static int Shot_thread_return = -1;
+static char *Shot_filename = NULL;
+static int Shot_frameNumber = -1;
+
 
 /*********************************************************************************************************
 * PNG support functions for writing screenshot files
@@ -75,17 +93,7 @@ static void user_flush_data(png_structp png_write)
 * Other Local (static) functions
 */
 
-/*
- * Keep memory buffer pointers so that we can save on malloc/free calls
- * as long as the screen resolution doesn't change.
- */
-static unsigned char *Shot_pucFrame = NULL;
-static int Shot_width = 0;
-static int Shot_height = 0;
-static png_byte **Shot_row_pointers = NULL;
-static int Shot_row_pointers_size = 0;
-
-static int SaveRGBBufferToFile(const char *filename, const unsigned char *buf, int width, int height, int pitch)
+static int SaveRGBBufferToFile(const unsigned char *buf, int width, int height, int pitch)
 {
     int i;
 
@@ -111,10 +119,10 @@ static int SaveRGBBufferToFile(const char *filename, const unsigned char *buf, i
         return 3;
     }
     // open the file to write
-    FILE *savefile = fopen(filename, "wb");
+    FILE *savefile = fopen(Shot_filename, "wb");
     if (savefile == NULL)
     {
-        DebugMessage(M64MSG_ERROR, "Error opening '%s' to save screenshot.", filename);
+        DebugMessage(M64MSG_ERROR, "Error opening '%s' to save screenshot.", Shot_filename);
         return 4;
     }
     // set function pointers in the PNG library, for write callbacks
@@ -206,6 +214,20 @@ static char *GetNextScreenshotPath(void)
     return ScreenshotPath;
 }
 
+void *TakeScreenshotThread(void *IGNORED)
+{
+    // write the image to a PNG
+    SaveRGBBufferToFile(Shot_pucFrame, Shot_width, Shot_height, Shot_width * 3);
+    // free the memory
+    free(Shot_filename);
+    // print message -- this allows developers to capture frames and use them in the regression test
+    main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Captured screenshot for frame %i.", Shot_frameNumber);
+    
+    // let the main thread know we're done
+    Shot_thread_return = -1;
+    pthread_exit(NULL);
+}
+
 
 /*********************************************************************************************************
 * Global screenshot functions
@@ -218,11 +240,16 @@ extern "C" void ScreenshotRomOpen(void)
 
 extern "C" void TakeScreenshot(int iFrameNumber)
 {
-    char *filename;
-
+    // bail out if a screenshot thread is still running
+    if (Shot_thread_return==0)
+    {
+        main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Screenshot %i ignored -- not ready yet.", iFrameNumber);
+        return;
+    }
+    
     // look for an unused screenshot filename
-    filename = GetNextScreenshotPath();
-    if (filename == NULL)
+    Shot_filename = GetNextScreenshotPath();
+    if (Shot_filename == NULL)
         return;
 
     // get the width and height
@@ -240,7 +267,7 @@ extern "C" void TakeScreenshot(int iFrameNumber)
         Shot_pucFrame = (unsigned char *) malloc(width * height * 3);
         if (Shot_pucFrame == NULL)
         {
-            free(filename);
+            free(Shot_filename);
             return;
         }
         
@@ -249,13 +276,10 @@ extern "C" void TakeScreenshot(int iFrameNumber)
     }
 
     // grab the back image from OpenGL by calling the video plugin
-    gfx.readScreen(Shot_pucFrame, &width, &height, 0);
-
-    // write the image to a PNG
-    SaveRGBBufferToFile(filename, Shot_pucFrame, width, height, width * 3);
-    // free the memory
-    free(filename);
-    // print message -- this allows developers to capture frames and use them in the regression test
-    main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Captured screenshot for frame %i.", iFrameNumber);
+    gfx.readScreen(Shot_pucFrame, &Shot_width, &Shot_height, 0);
+    
+    // start a thread to handle the (expensive) disk i/o
+    Shot_frameNumber = iFrameNumber;
+    Shot_thread_return = pthread_create(&Shot_thread, NULL, TakeScreenshotThread, NULL);
+    main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Screenshot thread launch for frame %i returned %i.", iFrameNumber, Shot_thread_return);
 }
-
