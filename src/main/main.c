@@ -680,6 +680,14 @@ m64p_error main_video_autoshots_toggle(void)
 {
     l_AutoshotsEnabled = l_AutoshotsEnabled == 0 ? 1 : 0;
     StateChanged(M64CORE_VIDEO_AUTOSHOTS, main_video_get_autoshots());
+    if (l_AutoshotsEnabled == 1) 
+    {
+        main_message(M64MSG_STATUS, OSD_BOTTOM_LEFT, "%s", "Autoshots Enabled");
+    }
+    else
+    {
+        main_message(M64MSG_STATUS, OSD_BOTTOM_LEFT, "%s", "Autoshots Disabled");
+    }
     return M64ERR_SUCCESS;
 }
 
@@ -710,16 +718,17 @@ static void video_plugin_render_callback(int bScreenRedrawn)
     {
         // if the OSD is enabled, and the screen has not been recently redrawn, then we cannot take a screenshot now because
         // it contains the OSD text.  Wait until the next redraw
-        if (!bOSD || bScreenRedrawn)
+        // Alternatively, if autoshots are enabled, we just go!
+        if (!bOSD || bScreenRedrawn || l_AutoshotsEnabled == 1)
         {
-	    if (l_AutoshotsEnabled == 1)
-	    {
-	    	TakeScreenshot(l_CurrentFrame);
+            if (l_AutoshotsEnabled == 1)
+            {
+                TakeScreenshot(l_CurrentFrame, true);
             }
-	    else
-	    {
-            	TakeScreenshot(l_TakeScreenshot - 1);  // current frame number +1 is in l_TakeScreenshot
-	    }
+            else
+            {
+                TakeScreenshot(l_TakeScreenshot - 1, false);  // current frame number +1 is in l_TakeScreenshot
+            }
             l_TakeScreenshot = 0; // reset flag
         }
     }

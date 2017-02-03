@@ -23,8 +23,10 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 void ScreenshotRomOpen(void);
-void TakeScreenshot(int iFrameNumber);
+void TakeScreenshot(int iFrameNumber, bool bUseTimestamp);
 
 #ifdef __cplusplus
 }

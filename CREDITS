@@ -1,10 +1,11 @@
 ===================================================================================================
-| Mupen64Plus 2.5+ credits                                                     January 25th, 2017 |
+| Mupen64Plus 2.5 Alpha Griffin Edition credits                                February 2nd, 2017 |
 ===================================================================================================
 
-Alpha Griffin
+Alpha Griffin (http://alphagriffin.com)
  - core:
-   - improve screenshot performance and increase limit from 1,000 to 10 million images per ROM
+   - improve screenshot performance and increase limit from 1,000 to 10 trillion images per ROM
+   - autoshots mode will save screenshots with current time in millis
  - ui-console:
    - add '--autoshots' parameter for automatic screenshots
 

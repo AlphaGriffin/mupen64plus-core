@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "osd.h"
 
@@ -60,6 +61,7 @@ static pthread_t Shot_thread;
 static int Shot_thread_return = -1;
 static char *Shot_filename = NULL;
 static int Shot_frameNumber = -1;
+static bool Shot_useTimestamp = false;
 
 
 /*********************************************************************************************************
@@ -161,17 +163,18 @@ static int SaveRGBBufferToFile(const unsigned char *buf, int width, int height, 
 
 static int CurrentShotIndex;
 
-static char *GetNextScreenshotPath(void)
+static char *GetNextScreenshotPath()
 {
     char *ScreenshotPath;
-    char ScreenshotFileName[20 + 8 + 1 + 4];
+    char ScreenshotFileName[20 + 8 + 1 + 10]; // 13 digits for the current time in milliseconds is good until 11/20/2286
 
     // generate the base name of the screenshot
     // add the ROM name, convert to lowercase, convert spaces to underscores
     strcpy(ScreenshotFileName, ROM_PARAMS.headername);
     for (char *pch = ScreenshotFileName; *pch != '\0'; pch++)
         *pch = (*pch == ' ') ? '_' : tolower(*pch);
-    strcat(ScreenshotFileName, "-#######.png");
+
+    strcat(ScreenshotFileName, "-#############.png");
     
     // add the base path to the screenshot file name
     const char *SshotDir = ConfigGetParamString(g_CoreConfig, "ScreenshotPath");
@@ -192,24 +195,44 @@ static char *GetNextScreenshotPath(void)
             return NULL;
     }
 
-    // patch the number part of the name (the '#######' part) until we find a free spot
-    char *NumberPtr = ScreenshotPath + strlen(ScreenshotPath) - 11;
-    for (; CurrentShotIndex < 10000000; CurrentShotIndex++)
-    {
-        sprintf(NumberPtr, "%07i.png", CurrentShotIndex);
-        FILE *pFile = fopen(ScreenshotPath, "r");
-        if (pFile == NULL)
-            break;
-        fclose(pFile);
-    }
+    // patch the number part of the name (the '#############' part) until we find a free spot
+    char *NumberPtr = ScreenshotPath + strlen(ScreenshotPath) - 17;
 
-    if (CurrentShotIndex >= 10000000)
+    if (Shot_useTimestamp)
     {
-        DebugMessage(M64MSG_ERROR, "Can't save screenshot; folder already contains 10000000 screenshots for this ROM");
-        free(ScreenshotPath);
-        return NULL;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        unsigned long long time_in_ms = (unsigned long long)(tv.tv_sec) * 1000 +
+                (unsigned long long)(tv.tv_usec) / 1000;
+
+        if (time_in_ms >= 10000000000000)
+        {
+            DebugMessage(M64MSG_ERROR, "Can't save screenshot; it's the year 2286 and this variable isn't big enough!");
+            free(ScreenshotPath);
+            return NULL;
+        }
+
+        sprintf(NumberPtr, "%013Lu.png", time_in_ms);
     }
-    CurrentShotIndex++;
+    else
+    {
+        for (; CurrentShotIndex < 10000000000000; CurrentShotIndex++)
+        {
+            sprintf(NumberPtr, "%013i.png", CurrentShotIndex);
+            FILE *pFile = fopen(ScreenshotPath, "r");
+            if (pFile == NULL)
+                break;
+            fclose(pFile);
+        }
+
+        if (CurrentShotIndex >= 10000000000000)
+        {
+            DebugMessage(M64MSG_ERROR, "Can't save screenshot; folder already contains 10000000000000 screenshots for this ROM");
+            free(ScreenshotPath);
+            return NULL;
+        }
+        CurrentShotIndex++;
+    }
 
     return ScreenshotPath;
 }
@@ -220,8 +243,12 @@ void *TakeScreenshotThread(void *IGNORED)
     SaveRGBBufferToFile(Shot_pucFrame, Shot_width, Shot_height, Shot_width * 3);
     // free the memory
     free(Shot_filename);
-    // print message -- this allows developers to capture frames and use them in the regression test
-    main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Captured screenshot for frame %i.", Shot_frameNumber);
+
+    if (!Shot_useTimestamp)
+    {
+        // print message -- this allows developers to capture frames and use them in the regression test
+        main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Captured screenshot for frame %i.", Shot_frameNumber);
+    }
     
     // let the main thread know we're done
     Shot_thread_return = -1;
@@ -238,16 +265,17 @@ extern "C" void ScreenshotRomOpen(void)
     CurrentShotIndex = 0;
 }
 
-extern "C" void TakeScreenshot(int iFrameNumber)
+extern "C" void TakeScreenshot(int iFrameNumber, bool bUseTimestamp)
 {
     // bail out if a screenshot thread is still running
     if (Shot_thread_return==0)
     {
-        main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Screenshot %i ignored -- not ready yet.", iFrameNumber);
+        //main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Screenshot %i ignored -- not ready yet.", iFrameNumber);
         return;
     }
     
     // look for an unused screenshot filename
+    Shot_useTimestamp = bUseTimestamp;
     Shot_filename = GetNextScreenshotPath();
     if (Shot_filename == NULL)
         return;
@@ -281,5 +309,5 @@ extern "C" void TakeScreenshot(int iFrameNumber)
     // start a thread to handle the (expensive) disk i/o
     Shot_frameNumber = iFrameNumber;
     Shot_thread_return = pthread_create(&Shot_thread, NULL, TakeScreenshotThread, NULL);
-    main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Screenshot thread launch for frame %i returned %i.", iFrameNumber, Shot_thread_return);
+    //main_message(M64MSG_INFO, OSD_BOTTOM_LEFT, "Screenshot thread launch for frame %i returned %i.", iFrameNumber, Shot_thread_return);
 }
