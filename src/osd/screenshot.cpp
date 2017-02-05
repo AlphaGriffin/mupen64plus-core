@@ -198,21 +198,29 @@ static char *GetNextScreenshotPath()
     // patch the number part of the name (the '#############' part) until we find a free spot
     char *NumberPtr = ScreenshotPath + strlen(ScreenshotPath) - 17;
 
+DebugMessage(M64MSG_ERROR, "YOU ARE NEW");
     if (Shot_useTimestamp)
     {
+DebugMessage(M64MSG_ERROR, "   GETTING TIME");
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        unsigned long long time_in_ms = (unsigned long long)(tv.tv_sec) * 1000 +
-                (unsigned long long)(tv.tv_usec) / 1000;
-
-        if (time_in_ms >= 10000000000000)
+        
+        
+        // WARNING: we can't seem to use multiply tv.tv_sec * 1000 when
+        // running under m64py. Overflow? So we're only doing this for
+        // a string anyways... so we write the seconds portion and then
+        // tack on the milliseconds
+        unsigned long long secs = tv.tv_sec;
+        sprintf(NumberPtr, "%010Lu", secs);
+        
+        if (secs >= 10000000000)
         {
             DebugMessage(M64MSG_ERROR, "Can't save screenshot; it's the year 2286 and this variable isn't big enough!");
             free(ScreenshotPath);
             return NULL;
         }
-
-        sprintf(NumberPtr, "%013Lu.png", time_in_ms);
+        
+		sprintf(NumberPtr + 10, "%03li.png", tv.tv_usec / 1000);
     }
     else
     {
