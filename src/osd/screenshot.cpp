@@ -198,13 +198,10 @@ static char *GetNextScreenshotPath()
     // patch the number part of the name (the '#############' part) until we find a free spot
     char *NumberPtr = ScreenshotPath + strlen(ScreenshotPath) - 17;
 
-DebugMessage(M64MSG_ERROR, "YOU ARE NEW");
     if (Shot_useTimestamp)
     {
-DebugMessage(M64MSG_ERROR, "   GETTING TIME");
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        
         
         // WARNING: we can't seem to use multiply tv.tv_sec * 1000 when
         // running under m64py. Overflow? So we're only doing this for
