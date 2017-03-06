@@ -60,6 +60,7 @@ static int Shot_row_pointers_size = 0;
 static pthread_t Shot_thread;
 static int Shot_thread_return = -1;
 static char *Shot_filename = NULL;
+static char Shot_filename_tmpbuffer[255];
 static int Shot_frameNumber = -1;
 static bool Shot_useTimestamp = false;
 
@@ -174,7 +175,8 @@ static char *GetNextScreenshotPath()
     for (char *pch = ScreenshotFileName; *pch != '\0'; pch++)
         *pch = (*pch == ' ') ? '_' : tolower(*pch);
 
-    strcat(ScreenshotFileName, "-#############.png");
+    // to prevent reads of partially-written image we use .tmp until write completes, then rename to .png
+    strcat(ScreenshotFileName, "-#############.tmp"); 
     
     // add the base path to the screenshot file name
     const char *SshotDir = ConfigGetParamString(g_CoreConfig, "ScreenshotPath");
@@ -246,6 +248,22 @@ void *TakeScreenshotThread(void *IGNORED)
 {
     // write the image to a PNG
     SaveRGBBufferToFile(Shot_pucFrame, Shot_width, Shot_height, Shot_width * 3);
+
+    // rename to proper filename
+    int len = strlen(Shot_filename);
+    if (len > 254) {
+        DebugMessage(M64MSG_ERROR, "Filepath too big for our puny buffer!");
+    }
+    else {
+        strcpy(Shot_filename_tmpbuffer, Shot_filename);
+	int i = len - 3;
+	Shot_filename_tmpbuffer[i] = 'p';
+	Shot_filename_tmpbuffer[i+1] = 'n';
+	Shot_filename_tmpbuffer[i+2] = 'g';
+
+        rename(Shot_filename, Shot_filename_tmpbuffer);
+    }
+
     // free the memory
     free(Shot_filename);
 
