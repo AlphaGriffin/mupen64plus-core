@@ -197,7 +197,7 @@ static char *GetNextScreenshotPath()
             return NULL;
     }
 
-    // patch the number part of the name (the '#############' part) until we find a free spot
+    
     char *NumberPtr = ScreenshotPath + strlen(ScreenshotPath) - 17;
 
     if (Shot_useTimestamp)
@@ -221,7 +221,7 @@ static char *GetNextScreenshotPath()
         
 		sprintf(NumberPtr + 10, "%03li.png", tv.tv_usec / 1000);
     }
-    else
+    else // patch the number part of the name (the '#############' part) until we find a free spot
     {
         for (; CurrentShotIndex < 10000000000000; CurrentShotIndex++)
         {

@@ -122,6 +122,12 @@ typedef enum {
 } m64p_video_flags;
 
 typedef enum {
+  M64AI_NONE = 0,
+  M64AI_RECORDING,
+  M64AI_PLAYING
+} m64p_ai_mode;
+
+typedef enum {
   M64CORE_EMU_STATE = 1,
   M64CORE_VIDEO_MODE,
   M64CORE_SAVESTATE_SLOT,
@@ -133,7 +139,7 @@ typedef enum {
   M64CORE_INPUT_GAMESHARK,
   M64CORE_STATE_LOADCOMPLETE,
   M64CORE_STATE_SAVECOMPLETE,
-  M64CORE_VIDEO_AUTOSHOTS
+  M64CORE_AI_MODE
 } m64p_core_param;
 
 typedef enum {
@@ -158,7 +164,9 @@ typedef enum {
   M64CMD_READ_SCREEN,
   M64CMD_RESET,
   M64CMD_ADVANCE_FRAME,
-  M64CMD_TOGGLE_AUTOSHOTS
+  M64CMD_AI_STOP,
+  M64CMD_AI_RECORD,
+  M64CMD_AI_PLAY
 } m64p_command;
 
 typedef struct {

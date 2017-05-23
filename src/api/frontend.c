@@ -289,9 +289,12 @@ EXPORT m64p_error CALL CoreDoCommand(m64p_command Command, int ParamInt, void *P
                 return M64ERR_INVALID_STATE;
             main_advance_one();
             return M64ERR_SUCCESS;
-	case M64CMD_TOGGLE_AUTOSHOTS:
-	    main_video_autoshots_toggle();
-	    return M64ERR_SUCCESS;
+        case M64CMD_AI_STOP:
+            return main_ai_stop();
+        case M64CMD_AI_RECORD:
+            return main_ai_record();
+        case M64CMD_AI_PLAY:
+            return main_ai_play();
         default:
             return M64ERR_INPUT_INVALID;
     }

@@ -1,2 +1,6 @@
+*.swp
+
 /projects/unix/_obj*/
 /projects/unix/libmupen64plus*.so*
+/projects/unix/libmupen64plus*.dylib
+

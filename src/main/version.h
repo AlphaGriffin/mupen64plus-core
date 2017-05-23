@@ -25,7 +25,7 @@
 #define __VERSION_H__
 
 #define MUPEN_CORE_NAME "Mupen64Plus Core - Alpha Griffin Edition"
-#define MUPEN_CORE_VERSION 0x020501
+#define MUPEN_CORE_VERSION 0x030000
 
 #define FRONTEND_API_VERSION 0x020102
 #define CONFIG_API_VERSION   0x020300

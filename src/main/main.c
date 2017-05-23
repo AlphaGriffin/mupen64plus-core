@@ -104,7 +104,7 @@ static int   l_TakeScreenshot = 0;       // Tell OSD Rendering callback to take 
 static int   l_SpeedFactor = 100;        // percentage of nominal game speed at which emulator is running
 static int   l_FrameAdvance = 0;         // variable to check if we pause on next frame
 static int   l_MainSpeedLimit = 1;       // insert delay during vi_interrupt to keep speed at real-time
-static int   l_AutoshotsEnabled = 0;     // whether autoshots are currently enabled (see --autoshots and --autoshots-start-disabled)
+static m64p_ai_mode l_AIMode = M64AI_NONE;
 
 static osd_message_t *l_msgVol = NULL;
 static osd_message_t *l_msgFF = NULL;
@@ -508,8 +508,8 @@ m64p_error main_core_state_query(m64p_core_param param, int *rval)
         case M64CORE_STATE_LOADCOMPLETE:
         case M64CORE_STATE_SAVECOMPLETE:
             return M64ERR_INPUT_INVALID;
-        case M64CORE_VIDEO_AUTOSHOTS:
-            *rval = main_video_get_autoshots();
+        case M64CORE_AI_MODE:
+            *rval = main_ai_get_mode();
             break;
         default:
             return M64ERR_INPUT_INVALID;
@@ -606,10 +606,15 @@ m64p_error main_core_state_set(m64p_core_param param, int val)
         case M64CORE_STATE_LOADCOMPLETE:
         case M64CORE_STATE_SAVECOMPLETE:
             return M64ERR_INPUT_INVALID;
-        case M64CORE_VIDEO_AUTOSHOTS:
-            if ((main_video_get_autoshots() && !val) || (!main_video_get_autoshots() && val))
-                return main_video_autoshots_toggle();
-            return M64ERR_SUCCESS;
+        case M64CORE_AI_MODE:
+            if (val==M64AI_NONE)
+                return main_ai_stop();
+            else if (val==M64AI_RECORDING)
+                return main_ai_record();
+            else if (val==M64AI_PLAYING)
+                return main_ai_play();
+            else
+                return M64ERR_INPUT_INVALID;
         default:
             return M64ERR_INPUT_INVALID;
     }
@@ -676,24 +681,51 @@ int main_volume_get_muted(void)
     return (audio.volumeGetLevel() == 0);
 }
 
-m64p_error main_video_autoshots_toggle(void)
+m64p_error main_ai_set_mode(int mode)
 {
-    l_AutoshotsEnabled = l_AutoshotsEnabled == 0 ? 1 : 0;
-    StateChanged(M64CORE_VIDEO_AUTOSHOTS, main_video_get_autoshots());
-    if (l_AutoshotsEnabled == 1) 
+    switch(mode)
     {
-        main_message(M64MSG_STATUS, OSD_BOTTOM_LEFT, "%s", "Autoshots Enabled");
+        case M64AI_NONE:
+            return main_ai_stop();
+
+        case M64AI_RECORDING:
+            return main_ai_record();
+
+        case M64AI_PLAYING:
+            return main_ai_play();
+
+        default:
+            return M64ERR_WRONG_TYPE;
     }
-    else
-    {
-        main_message(M64MSG_STATUS, OSD_BOTTOM_LEFT, "%s", "Autoshots Disabled");
-    }
+}
+
+m64p_ai_mode main_ai_get_mode(void)
+{
+    return l_AIMode;
+}
+
+m64p_error main_ai_stop(void)
+{
+    l_AIMode = M64AI_NONE;
+    StateChanged(M64CORE_AI_MODE, main_ai_get_mode());
+    main_message(M64MSG_STATUS, OSD_BOTTOM_LEFT, "%s", "AI Stopped");
     return M64ERR_SUCCESS;
 }
 
-int main_video_get_autoshots(void)
+m64p_error main_ai_record(void)
 {
-    return (l_AutoshotsEnabled == 1);
+    l_AIMode = M64AI_RECORDING;
+    StateChanged(M64CORE_AI_MODE, main_ai_get_mode());
+    main_message(M64MSG_STATUS, OSD_BOTTOM_LEFT, "%s", "AI Recording");
+    return M64ERR_SUCCESS;
+}
+
+m64p_error main_ai_play(void)
+{
+    l_AIMode = M64AI_PLAYING;
+    StateChanged(M64CORE_AI_MODE, main_ai_get_mode());
+    main_message(M64MSG_STATUS, OSD_BOTTOM_LEFT, "%s", "AI Playing");
+    return M64ERR_SUCCESS;
 }
 
 m64p_error main_reset(int do_hard_reset)
@@ -714,14 +746,14 @@ static void video_plugin_render_callback(int bScreenRedrawn)
     int bOSD = ConfigGetParamBool(g_CoreConfig, "OnScreenDisplay");
 
     // if the flag is set to take a screenshot, then grab it now
-    if (l_TakeScreenshot != 0 || l_AutoshotsEnabled == 1)
+    if (l_TakeScreenshot != 0 || l_AIMode == M64AI_RECORDING || l_AIMode == M64AI_PLAYING)
     {
         // if the OSD is enabled, and the screen has not been recently redrawn, then we cannot take a screenshot now because
         // it contains the OSD text.  Wait until the next redraw
         // Alternatively, if autoshots are enabled, we just go!
-        if (!bOSD || bScreenRedrawn || l_AutoshotsEnabled == 1)
+        if (!bOSD || bScreenRedrawn || l_AIMode == M64AI_RECORDING || l_AIMode == M64AI_PLAYING)
         {
-            if (l_AutoshotsEnabled == 1)
+            if (l_AIMode == M64AI_RECORDING || l_AIMode == M64AI_PLAYING)
             {
                 TakeScreenshot(l_CurrentFrame, true);
             }
