@@ -25,6 +25,7 @@ ConfigSetDefaultString;
 ConfigSetParameter;
 ConfigSetParameterHelp;
 CoreAddCheat;
+CoreAIGetMode;
 CoreAttachPlugin;
 CoreCheatEnabled;
 CoreDetachPlugin;

@@ -1470,3 +1470,13 @@ EXPORT const char * CALL ConfigGetUserCachePath(void)
   return osal_get_user_cachepath();
 }
 
+/*
+ * FIXME - move this somewhere else
+ *         (not config related)
+ * [A.G.E.] --lannocc
+ */
+EXPORT const int CALL CoreAIGetMode(void)
+{
+  return main_ai_get_mode();
+}
+

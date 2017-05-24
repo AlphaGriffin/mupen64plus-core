@@ -156,6 +156,7 @@ endif
 
 # set special flags per-system
 ifeq ($(OS), FREEBSD)
+  # FIXME -- use current version string for .so extension?
   TARGET = libmupen64plus$(POSTFIX).so.2.0.0
   SONAME = libmupen64plus$(POSTFIX).so.2
   LDFLAGS += -Wl,-Bsymbolic -shared -Wl,-export-dynamic -Wl,-soname,$(SONAME)
@@ -163,6 +164,7 @@ ifeq ($(OS), FREEBSD)
   ASFLAGS = -f elf -d ELF_TYPE
 endif
 ifeq ($(OS), LINUX)
+  # FIXME -- use current version string for .so extension?
   TARGET = libmupen64plus$(POSTFIX).so.2.0.0
   SONAME = libmupen64plus$(POSTFIX).so.2
   LDFLAGS += -Wl,-Bsymbolic -shared -Wl,-export-dynamic -Wl,-soname,$(SONAME)

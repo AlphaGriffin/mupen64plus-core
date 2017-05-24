@@ -244,6 +244,19 @@ typedef const char * (*ptr_ConfigGetUserCachePath)(void);
 EXPORT const char * CALL ConfigGetUserCachePath(void);
 #endif
 
+/* [A.G.E.] CoreAIGetMode()
+ *
+ * FIXME: move this somewhere else? (not config related)
+ *
+ * Return the AI Mode state.
+ *
+ * by Shawn Wilson --lannocc
+ */
+typedef const int (*ptr_CoreAIGetMode)(void);
+#if defined(M64P_CORE_PROTOTYPES)
+EXPORT const int CALL CoreAIGetMode(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
