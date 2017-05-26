@@ -4,3 +4,5 @@
 /projects/unix/libmupen64plus*.so*
 /projects/unix/libmupen64plus*.dylib
 
+src/asm_defines/asm_defines_*.h
+

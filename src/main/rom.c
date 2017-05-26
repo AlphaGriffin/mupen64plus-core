@@ -35,21 +35,22 @@
 #include "api/config.h"
 #include "api/m64p_config.h"
 #include "api/m64p_types.h"
+#include "device/memory/memory.h"
 #include "main.h"
 #include "md5.h"
-#include "memory/memory.h"
 #include "osal/preproc.h"
 #include "osd/osd.h"
-#include "r4300/r4300.h"
 #include "rom.h"
 #include "util.h"
-
-#define DEFAULT 16
 
 #define CHUNKSIZE 1024*128 /* Read files 128KB at a time. */
 
 /* Amount of cpu cycles per vi scanline - empirically determined */
 enum { DEFAULT_COUNT_PER_SCANLINE = 1500 };
+/* Number of cpu cycles per instruction */
+enum { DEFAULT_COUNT_PER_OP = 2 };
+/* by default, alternate VI timing is disabled */
+enum { DEFAULT_ALTERNATE_VI_TIMING = 0 };
 
 static romdatabase_entry* ini_search_by_md5(md5_byte_t* md5);
 
@@ -59,9 +60,6 @@ static _romdatabase g_romdatabase;
 unsigned char* g_rom = NULL;
 /* Global loaded rom size. */
 int g_rom_size = 0;
-/* Global hacks */
-unsigned char g_alternate_vi_timing = 0;
-int           g_count_per_scanline = DEFAULT_COUNT_PER_SCANLINE;
 unsigned char isGoldeneyeRom = 0;
 
 m64p_rom_header   ROM_HEADER;
@@ -177,16 +175,14 @@ m64p_error open_rom(const unsigned char* romimage, unsigned int size)
 
     /* add some useful properties to ROM_PARAMS */
     ROM_PARAMS.systemtype = rom_country_code_to_system_type(ROM_HEADER.Country_code);
-    ROM_PARAMS.countperop = COUNT_PER_OP_DEFAULT;
+    ROM_PARAMS.countperop = DEFAULT_COUNT_PER_OP;
+    ROM_PARAMS.vitiming = DEFAULT_ALTERNATE_VI_TIMING;
+    ROM_PARAMS.countperscanline = DEFAULT_COUNT_PER_SCANLINE;
     ROM_PARAMS.cheats = NULL;
 
     memcpy(ROM_PARAMS.headername, ROM_HEADER.Name, 20);
     ROM_PARAMS.headername[20] = '\0';
     trim(ROM_PARAMS.headername); /* Remove trailing whitespace from ROM name. */
-
-    /* set default values for global variables which can be set by the ROM ini */
-    g_alternate_vi_timing = 0;
-    g_count_per_scanline = DEFAULT_COUNT_PER_SCANLINE;
 
     /* Look up this ROM in the .ini file and fill in goodname, etc */
     if ((entry=ini_search_by_md5(digest)) != NULL ||
@@ -199,10 +195,9 @@ m64p_error open_rom(const unsigned char* romimage, unsigned int size)
         ROM_SETTINGS.players = entry->players;
         ROM_SETTINGS.rumble = entry->rumble;
         ROM_PARAMS.countperop = entry->countperop;
+        ROM_PARAMS.vitiming = entry->alternate_vi_timing;
+        ROM_PARAMS.countperscanline = entry->count_per_scanline;
         ROM_PARAMS.cheats = entry->cheats;
-        g_alternate_vi_timing = entry->alternate_vi_timing;
-        if (entry->count_per_scanline > 0)
-            g_count_per_scanline = entry->count_per_scanline;
     }
     else
     {
@@ -212,7 +207,9 @@ m64p_error open_rom(const unsigned char* romimage, unsigned int size)
         ROM_SETTINGS.status = 0;
         ROM_SETTINGS.players = 0;
         ROM_SETTINGS.rumble = 0;
-        ROM_PARAMS.countperop = COUNT_PER_OP_DEFAULT;
+        ROM_PARAMS.countperop = DEFAULT_COUNT_PER_OP;
+        ROM_PARAMS.vitiming = DEFAULT_ALTERNATE_VI_TIMING;
+        ROM_PARAMS.countperscanline = DEFAULT_COUNT_PER_SCANLINE;
         ROM_PARAMS.cheats = NULL;
     }
 
@@ -448,10 +445,12 @@ void romdatabase_open(void)
             search->entry.crc1 = 0;
             search->entry.crc2 = 0;
             search->entry.status = 0; /* Set default to 0 stars. */
-            search->entry.savetype = DEFAULT;
-            search->entry.players = DEFAULT;
-            search->entry.rumble = DEFAULT; 
-            search->entry.countperop = COUNT_PER_OP_DEFAULT;
+            search->entry.savetype = 0;
+            search->entry.players = 0;
+            search->entry.rumble = 0;
+            search->entry.countperop = DEFAULT_COUNT_PER_OP;
+            search->entry.alternate_vi_timing = DEFAULT_ALTERNATE_VI_TIMING;
+            search->entry.count_per_scanline = DEFAULT_COUNT_PER_SCANLINE;
             search->entry.cheats = NULL;
             search->entry.set_flags = ROMDATABASE_ENTRY_NONE;
 

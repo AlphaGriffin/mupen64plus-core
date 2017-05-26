@@ -1,6 +1,6 @@
 # Mupen64Plus-Core README
 
-More documentation can be found on the [Mupen64Plus website] (http://mupen64plus.org/docs/)
+More documentation can be found on the [Mupen64Plus website](http://mupen64plus.org/docs/)
 and you can find a more complete README file on the legacy [Google Code](https://code.google.com/archive/p/mupen64plus/wikis/README.wiki) site.
 
 Mupen64Plus is based off of mupen64, originally created by Hacktarux. This
@@ -35,6 +35,7 @@ build Mupen64Plus from source:
 
   - GNU C and C++ compiler, libraries, and headers
   - GNU make
+  - Nasm
   - Development packages for all the libraries above
 
 ## 2. Building From Source
