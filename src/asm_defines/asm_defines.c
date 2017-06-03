@@ -37,19 +37,46 @@
 
 #include <stddef.h>
 
-/* Internally used to define a dummy array named "sym" and whose size is "val + 1" bytes.
- * This eases extraction of such information using objdump/dumpbin/nm tools.
- * The plus one in size is to avoid the creation of zero sized array (which are illegal in C).
- * We need to subtract one in objects symbols sizes to get the correct value.
+#define HEX(n) ((n) >= 10 ? ('a' + ((n) - 10)) : ('0' + (n)))
+
+/* Creates a structure whose bytes form a string like
+ * "\n@ASM_DEFINE offsetof_blah_blah 0xdeadbeef\n"
+ *
+ * This should appear somewhere in the object file, and is distinctive enough
+ * that it shouldn't appear by chance.  Thus we can pipe the object file
+ * directly to awk, and extract the values without having to use
+ * platform-specific tools (e.g. objdump, dumpbin, nm).
  */
-#define _DEFINE(sym, val) const char sym[1+val];
+#define _DEFINE(str, sym, val) \
+    const struct { \
+        char before[sizeof(str)-1]; \
+        char hexval[8]; \
+        char after; \
+        char ensure_32bit[(val) > 0xffffffff ? -1 : 1]; \
+    } sym = { \
+        str, \
+        { \
+            HEX(((val) >> 28) & 0xf), \
+            HEX(((val) >> 24) & 0xf), \
+            HEX(((val) >> 20) & 0xf), \
+            HEX(((val) >> 16) & 0xf), \
+            HEX(((val) >> 12) & 0xf), \
+            HEX(((val) >>  8) & 0xf), \
+            HEX(((val) >>  4) & 0xf), \
+            HEX(((val) >>  0) & 0xf) \
+        }, \
+        '\n', \
+        {0} \
+    };
 
 /* Export member m of structure s.
- * Suitable parsing of corresponding object file (objdump/dumpbin/awk)
- * can be used to generate header suitable for inclusion in assembly files.
+ * Suitable parsing of corresponding object file (with strings) can be used to
+ * generate header suitable for inclusion in assembly files.
  */
 #define DEFINE(s, m) \
-    _DEFINE(offsetof_struct_##s##_##m, offsetof(struct s, m));
+    _DEFINE("\n@ASM_DEFINE offsetof_struct_" #s "_" #m " 0x", \
+            __offsetof_struct_##s##_##m, \
+            offsetof(struct s, m));
 
 
 /* Structure members definitions */
@@ -79,10 +106,9 @@ DEFINE(r4300_core, return_address);
 
 #if NEW_DYNAREC != NEW_DYNAREC_ARM
 /* ARM dynarec uses a different memory layout */
-DEFINE(r4300_core, wbyte);
-DEFINE(r4300_core, whword);
 DEFINE(r4300_core, wword);
 DEFINE(r4300_core, wdword);
+DEFINE(r4300_core, wmask);
 DEFINE(r4300_core, address);
 #endif
 
@@ -102,6 +128,12 @@ DEFINE(tlb, LUT_w);
 
 DEFINE(r4300_core, cached_interp);
 DEFINE(cached_interp, invalid_code);
+
+DEFINE(device, mem);
+DEFINE(memory, readmem);
+DEFINE(memory, readmemd);
+DEFINE(memory, writemem);
+DEFINE(memory, writememd);
 
 #ifdef NEW_DYNAREC
 DEFINE(r4300_core, new_dynarec_hot_state);
@@ -128,10 +160,9 @@ DEFINE(new_dynarec_hot_state, stop);
 DEFINE(new_dynarec_hot_state, invc_ptr);
 DEFINE(new_dynarec_hot_state, address);
 DEFINE(new_dynarec_hot_state, rdword);
+DEFINE(new_dynarec_hot_state, wmask);
 DEFINE(new_dynarec_hot_state, wdword);
 DEFINE(new_dynarec_hot_state, wword);
-DEFINE(new_dynarec_hot_state, whword);
-DEFINE(new_dynarec_hot_state, wbyte);
 DEFINE(new_dynarec_hot_state, fcr0);
 DEFINE(new_dynarec_hot_state, fcr31);
 DEFINE(new_dynarec_hot_state, regs);
