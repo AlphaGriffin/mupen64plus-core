@@ -1,4 +1,4 @@
-# Mupen64Plus-Core README
+# Mupen64Plus-Core A.G.E. README
 
 More documentation can be found on the [Mupen64Plus website](http://mupen64plus.org/docs/)
 and you can find a more complete README file on the legacy [Google Code](https://code.google.com/archive/p/mupen64plus/wikis/README.wiki) site.
@@ -7,6 +7,15 @@ Mupen64Plus is based off of mupen64, originally created by Hacktarux. This
 package contains only the Mupen64Plus core library.  For a fully functional
 emulator, the user must also install graphics, sound, input, and RSP plugins,
 as well as a user interface program (called a front-end).
+
+### Notes about [Alpha Griffin](http://alphagriffin.com) Edition
+
+This version of the core module includes code to assist in Artificial Intelligence, namely:
+
+1. Introduction of an AI_MODE status flag to indicate whether the A.I. is currently recording, playing, or disabled.
+2. Modification of the existing screenshots handler so it is multithreaded, uses fewer memory allocations (not yet confirmed), and can save images using a timestamped filename.
+
+Artifical Intelligence features are currently implemented in and require the Alpha Griffin Edition of **mupen64plus-ui-python** (*m64py* >= 3.0.0).
 
 ### README Sections
   1. Requirements and Prerequisites
